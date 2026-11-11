@@ -37,6 +37,11 @@ button.edit{background:transparent;color:var(--pr);padding:4px 8px;border:1px so
 <main id="app"><div style="text-align:center;padding:50px;font-size:20px;">جاري تحميل البرنامج...</div></main>
 <nav class="tabs" id="tabs"></nav>
 <script>
+window.onerror = function(msg, url, line) {
+    document.getElementById('app').innerHTML = '<div style="color:red;padding:20px;direction:rtl;text-align:center;font-size:18px;margin-top:50px;">حدث خطأ برمجي:<br><br><b>' + msg + '</b><br>السطر: ' + line + '</div>';
+    return false;
+};
+
 const SITES=['العاصمة','أكتوبر','السوق'];
 const TABS=[['sum','📊','الملخص'],['c','💰','العهدة'],['w','👷','المواقع'],['o','🧾','مصروفات'],['q','🤝','تصفيات']];
 const SUB={o:['x','z'],q:['p','m']};
@@ -48,14 +53,12 @@ const L={c:{t:'العهدة',f:[D,A,['r','المستلم','text']],s:x=>f(x.amou
  m:{t:'مديونيات',f:[D,['name','الاسم','list'],A],s:x=>esc(x.name)+': '+f(x.amount)}};
 
 let S;try{S=JSON.parse(localStorage.getItem('ohda2'))}catch(e){}
-// تحديث الهيكل ليشمل خزنة الموقع sf (وارد) و se (مصاريف موقع)
 S=Object.assign({c:[],x:[],z:[],p:[],m:[],w:[],e:[],sf:[],se:[]},S||{});
 S.w.forEach(w=>{
   if(w.meterRate==null)w.meterRate=0;
   if(w.helperRate==null)w.helperRate=0;
   if(!w.prev)w.prev={days:0,ot:0,exp:0,meterQty:0};
 });
-
 const today=()=>new Date().toISOString().slice(0,10);
 let tab='sum',site=SITES[0],openW=null,mon=today().slice(0,7),sub={o:'x',q:'p'};
 let selW=new Set(), multiPrint=false;
@@ -101,16 +104,15 @@ function del(c,id){if(!confirm('متأكد من الحذف؟'))return;S[c]=S[c].
 function go(t){tab=t;openW=null;multiPrint=false;render();scrollTo(0,0)}
 const M=a=>a.filter(x=>inM(x.date));
 
-// حسابات الموقع
 function getSiteIn(s){ return sum(S.sf.filter(x=>x.site==s && inM(x.date))); }
 function getSiteOut(s){ return sum(S.se.filter(x=>x.site==s && inM(x.date))); }
 function getSiteWorkersExp(s){ 
   const ids=S.w.filter(w=>w.s==s).map(w=>w.id);
-  return S.e.filter(e=>ids.includes(e.w)&&inM(e.date)).reduce((t,e)=>t+(+e.x||0),0);
+  return S.e.filter(e=>ids.indexOf(e.w)>-1 && inM(e.date)).reduce((t,e)=>t+(+e.x||0),0);
 }
 function getSiteWorkersAdv(s){ 
   const ids=S.w.filter(w=>w.s==s).map(w=>w.id);
-  return S.e.filter(e=>ids.includes(e.w)&&inM(e.date)).reduce((t,e)=>t+(+e.a||0),0);
+  return S.e.filter(e=>ids.indexOf(e.w)>-1 && inM(e.date)).reduce((t,e)=>t+(+e.a||0),0);
 }
 
 function vSum(){
@@ -118,9 +120,9 @@ function vSum(){
  let totalFunds=0, totalSiteExp=0, totalWorkerExp=0, totalWorkerAdv=0;
  let siteRows=[];
  SITES.forEach(s=>{
-    let f=getSiteIn(s), se=getSiteOut(s), we=getSiteWorkersExp(s), wa=getSiteWorkersAdv(s);
-    totalFunds+=f; totalSiteExp+=se; totalWorkerExp+=we; totalWorkerAdv+=wa;
-    siteRows.push([s, f, se, we, wa]);
+    let f1=getSiteIn(s), se=getSiteOut(s), we=getSiteWorkersExp(s), wa=getSiteWorkersAdv(s);
+    totalFunds+=f1; totalSiteExp+=se; totalWorkerExp+=we; totalWorkerAdv+=wa;
+    siteRows.push([s, f1, se, we, wa]);
  });
  const genExp=sum(M(S.x))+sum(M(S.z));
  const rest=cu - (totalSiteExp + totalWorkerExp + totalWorkerAdv + genExp);
@@ -158,7 +160,6 @@ function vL(k){
 function addL(k){const o={id:uid()};L[k].f.forEach(x=>o[x[0]]=$('#f_'+x[0]).value);if(!o.amount&&k!='c')return;if(k=='c'&&!+o.amount)return;o.amount=+o.amount;S[k].push(o);save();render();}
 function editL(k,id){const x=S[k].find(i=>i.id==id);if(!x)return;const nv=prompt('المبلغ الجديد:',x.amount);if(nv===null)return;x.amount=+nv||0;save();render();}
 
-// الموقع
 function toggleSel(id){ if(selW.has(id)) selW.delete(id); else selW.add(id); render(); }
 function selectAll(){ S.w.filter(w=>w.s==site).forEach(w=>selW.add(w.id)); render(); }
 function clearSel(){ selW.clear(); render(); }
@@ -176,7 +177,6 @@ function vWork(){
 
  let html='<div class="chips">'+SITES.map(s=>'<button class="'+(s==site?'':'s')+'" onclick="setSite(\''+s+'\')">'+s+'</button>').join('')+'</div>';
  
- // كارت التصفية
  html+='<div class="card" style="border:2px solid var(--pr)"><h3>💼 تصفية الموقع</h3>';
  html+='<div class="row"><span>الواصل للموقع</span><b class="ok">'+f(fin)+'</b></div>';
  html+='<div class="row"><span>مصاريف الموقع</span><b class="bad">-'+f(se)+'</b></div>';
@@ -184,7 +184,6 @@ function vWork(){
  html+='<div class="row"><span>سلف العمال</span><b class="bad">-'+f(wa)+'</b></div>';
  html+='<div class="row"><b>الصافي بالموقع</b><b class="big '+cls(net)+'">'+f(net)+'</b></div></div>';
 
- // إدخال وارد ومصاريف موقع
  html+='<div class="card noprint"><h3>➕ إضافة حركة للموقع ('+site+')</h3>';
  html+='<input id="ed_site" type="date" value="'+today()+'">';
  html+='<select id="ty_site"><option value="in">وارد (فلوس جات للموقع)</option><option value="out">مصاريف موقع (خارجة)</option></select>';
@@ -192,16 +191,16 @@ function vWork(){
  html+='<input id="note_site" placeholder="ملاحظة (اختياري)">';
  html+='<button onclick="addSiteTx()">تسجيل الحركة</button></div>';
 
- // سجل حركات الموقع
- let tx=S.sf.filter(x=>x.site==site && inM(x.date)).map(x=>({...x,ty:'in'})).concat(S.se.filter(x=>x.site==site && inM(x.date)).map(x=>({...x,ty:'out'}))).sort((a,b)=>b.date.localeCompare(a.date));
+ let sf=S.sf.filter(x=>x.site==site && inM(x.date)).map(function(x){ var o=Object.assign({},x); o.ty='in'; return o; });
+ let se_list=S.se.filter(x=>x.site==site && inM(x.date)).map(function(x){ var o=Object.assign({},x); o.ty='out'; return o; });
+ let tx=sf.concat(se_list).sort(function(a,b){ return b.date.localeCompare(a.date); });
+
  if(tx.length){
    html+='<div class="card"><h3>📄 سجل حركات الموقع</h3>'+tx.map(x=>'<div class="row"><div><div class="b '+(x.ty=='in'?'ok':'bad')+'">'+(x.ty=='in'?'وارد: +':'مصروف: -')+f(x.amount)+'</div><div class="mu">'+x.date+' '+(x.note||'')+'</div></div><div style="display:flex;gap:4px"><button class="edit" onclick="editSiteTx(\''+x.ty+'\',\''+x.id+'\')">تعديل</button><button class="g" onclick="del(\''+(x.ty=='in'?'sf':'se')+'\',\''+x.id+'\')">حذف</button></div></div>').join('')+'</div>';
  }
 
- // إضافة عامل
  html+='<div class="card"><h3>➕ إضافة عامل جديد</h3><input id="n" placeholder="اسم العامل"><input id="jb" placeholder="الوظيفة"><select id="ty" onchange="document.getElementById(\'meterFields\').style.display=this.value==\'meter\'?\'block\':\'none\'"><option value="daily">باليومية</option><option value="meter">بالمتر</option></select><div class="g2"><input type="number" id="rt" placeholder="سعر اليومية" inputmode="decimal"><input type="number" id="ot" placeholder="سعر السهرة" inputmode="decimal"></div><div id="meterFields" style="display:none"><div class="g2"><input type="number" id="mr" placeholder="سعر المتر" inputmode="decimal"><input type="number" id="hr" placeholder="يومية المساعد" inputmode="decimal"></div></div><h3>📅 الشهر السابق</h3><div class="g2"><input type="number" id="pd" placeholder="عدد الأيام" inputmode="decimal"><input type="number" id="po" placeholder="السهرات" inputmode="decimal"><input type="number" id="pe" placeholder="المصاريف" inputmode="decimal"><input type="number" id="pm" placeholder="المتر" inputmode="decimal"></div><button onclick="addW()">إضافة عامل</button></div>';
 
- // قائمة العمال
  html+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;margin-bottom:8px;border-bottom:2px solid var(--ln);flex-wrap:wrap;gap:6px"><b>عمال الموقع ('+ws.length+')</b><div style="display:flex;gap:4px;flex-wrap:wrap"><button class="s" onclick="selectAll()">تحديد الكل</button>'+(selW.size?'<button class="s" onclick="clearSel()">إلغاء ('+selW.size+')</button>':'')+'<button onclick="printSelected()">🖨️ طباعة '+(selW.size?'('+selW.size+')':'')+'</button></div></div>';
  html+=(ws.length?ws.map(w=>{const s=wst(w),sel=selW.has(w.id);return '<div class="row"><input type="checkbox" '+(sel?'checked':'')+' onchange="toggleSel(\''+w.id+'\')"><div style="flex:1;cursor:pointer" onclick="setOpenW(\''+w.id+'\')"><div class="b">'+esc(w.n)+'</div><div class="mu">'+esc(w.jb)+' · '+(w.ty=='daily'?'يومية '+f(w.rt):'بالمتر '+f(w.meterRate||0))+'</div></div><span class="b '+cls(s.bal)+'" style="cursor:pointer" onclick="setOpenW(\''+w.id+'\')">'+f(s.bal)+'</span></div>'}).join(''):'<div class="mu">لا يوجد عمال</div>')+'</div>';
  return html;
@@ -226,4 +225,4 @@ function vW(w){
  html+='<div class="card"><h3>💰 الحساب</h3>'+(s.prev?'<div class="row"><span>رصيد سابق</span><b class="'+cls(s.prev)+'">'+f(s.prev)+'</b></div>':'')+'<div class="row"><span>المستحق</span><b>'+f(s.earn)+'</b></div><div class="row"><span>مصاريف</span><b>'+f(s.x)+'</b></div><div class="row"><span>سلف</span><b>'+f(s.a)+'</b></div>'+(s.g?'<div class="row"><span>خصومات</span><b>'+f(s.g)+'</b></div>':'')+(isM&&s.helperCost?'<div class="row"><span>عامل مساعد ('+s.helperDays+' يوم)</span><b class="bad">'+f(s.helperCost)+'</b></div>':'')+'<div class="row"><span>مدفوع (تصفيات)</span><b>'+f(s.paid)+'</b></div><div class="row"><b>المتبقي له</b><b class="big '+cls(s.bal)+'">'+f(s.bal)+'</b></div>'+(s.debt?'<div class="row"><span>مديونية</span><b class="bad">'+f(s.debt)+'</b></div><div class="row"><b>الصافي</b><b class="'+cls(s.bal-s.debt)+'">'+f(s.bal-s.debt)+'</b></div>':'')+'</div>';
  html+='<div class="card"><h3>📊 ملخص</h3><div class="row"><span>عدد الأيام</span><b>'+f(s.days)+' يوم</b></div><div class="row"><span>عدد السهرات</span><b>'+f(s.ot)+' سهرة</b></div><div class="row"><span>إجمالي المصاريف</span><b>'+f(s.x)+'</b></div><div class="row"><span>إجمالي السلف</span><b>'+f(s.a)+'</b></div>'+(isM?'<div class="row"><span>إجمالي المتر</span><b>'+f(s.meter)+'</b></div>':'')+'</div>';
  html+='<div class="card noprint"><h3>تسجيل يوم جديد</h3><input id="ed" type="date" value="'+today()+'">'+(isM?'<div class="g2">'+I('eq','الكمية (متر)')+I('er','سعر المتر','number',w.meterRate||0)+'</div><label class="chk"><input type="checkbox" id="eh" checked> عامل مساعد موجود</label>':'<div class="g2">'+I('ey','أيام (1 / 0.5)')+I('eo','سهرات')+'</div>')+'<div class="g2">'+I('ex','مصاريف')+I('ea','سلف')+I('eg','خصم')+'</div><input id="en" placeholder="ملاحظة"><button onclick="addE()">تسجيل</button></div>';
- html+='<div class="card">'+es.map(e=>{const p=[];if(e.days)p.push(e.days+' يوم');if(e.ot)p.push(e.ot+' سهرة');if(e.q)p.push(esc(e.note||'')+' '+e.q+'×'+e.r);if(e.helper)p.push('👷 مساعد');if(e.g)p.push('خصم '+e.g);if(e.x)p.push('مصاريف '+e.x);if(e.a)p.push('سلف '+e.a);return '<div class="row"><div><div class="b">'+p.join(
+ html+='<div class="card">'+es.map(e=>{const p=[];if(e.days)p.push(e.days+' ي
