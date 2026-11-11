@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>برنامج العهدة</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--tx:#1b2430;--mu:#6b7785;--pr:#0f766e;--ln:#e3e8ee;--bad:#c0392b;--ok:#15803d;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10151b;--card:#1a222c;--tx:#e8edf2;--mu:#93a1b0;--pr:#2dd4bf;--ln:#2a3542;--bad:#ff7b6b;--ok:#4ade80;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#10151b;--card:#1a222c;--tx:#e8edf2;--mu:#93a1b0;--pr:#2dd4bf;--ln:#2a3542;--bad:#ff7b6b;--ok:#4ade80;color-scheme:dark}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;padding-bottom:76px}
+main{max-width:640px;margin:0 auto;padding:12px}
+h2{font-size:18px;margin:6px 0 10px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:12px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--ln)}
+.row:last-child{border:0}
+.mu{color:var(--mu);font-size:13px}.b{font-weight:700}.bad{color:var(--bad)}.ok{color:var(--ok)}
+input,select{width:100%;padding:10px;border:1px solid var(--ln);border-radius:10px;background:var(--bg);color:var(--tx);font:inherit;margin-bottom:8px}
+button{font:inherit;border:0;border-radius:10px;padding:10px 14px;background:var(--pr);color:#fff;font-weight:700;cursor:pointer}
+button.g{background:transparent;color:var(--bad);padding:4px 8px}
+button.s{background:var(--bg);color:var(--tx);border:1px solid var(--ln)}
+.chips{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto}.chips button{white-space:nowrap}
+.tabs{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--ln);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{flex:1;background:none;color:var(--mu);border-radius:0;padding:10px 2px;font-size:13px}
+.tabs button.on{color:var(--pr)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.big{font-size:20px;font-weight:700}
+.tabs button{font-size:12px}@media print{.tabs,button,select,.noprint{display:none!important}body{padding:0}}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<nav class="tabs" id="tabs"></nav>
+<script>
+const SITES=['العاصمة','أكتوبر','السوق'];
+const TABS=[['sum','📊','الملخص'],['c','💰','العهدة'],['w','👷','العمال'],['o','🧾','مصروفات'],['q','🤝','تصفيات']];
+const SUB={o:['x','z'],q:['p','m']};
+const D=['date','التاريخ','date'],A=['amount','المبلغ','number'];
+const L={c:{t:'العهدة',f:[D,A,['r','المستلم','text']],s:x=>`${f(x.amount)} · ${esc(x.r)}`},
+ x:{t:'نثريات',f:[D,['d','البيان','text'],A],s:x=>`${f(x.amount)} · ${esc(x.d)}`},
+ z:{t:'زيد السوق',f:[D,['k','النوع','select',['مصاريف','سلف']],A,['n','ملاحظة','text']],s:x=>`${x.k}: ${f(x.amount)} ${esc(x.n)}`},
+ p:{t:'تصفيات',f:[D,['name','الاسم','list'],A,['s','الموقع','select',[...SITES,'أخرى']],['n','ملاحظات','text']],s:x=>`${esc(x.name)}: ${f(x.amount)} (${x.s}) ${esc(x.n)}`},
+ m:{t:'مديونيات',f:[D,['name','الاسم','list'],A],s:x=>`${esc(x.name)}: ${f(x.amount)}`}};
+let S;try{S=JSON.parse(localStorage.getItem('ohda2'))}catch(e){}
+S=Object.assign({c:[],x:[],z:[],p:[],m:[],w:[],e:[]},S||{});
+const today=()=>new Date().toISOString().slice(0,10);
+let tab='sum',site=SITES[0],openW=null,mon=today().slice(0,7),sub={o:'x',q:'p'};
+const save=()=>{try{localStorage.setItem('ohda2',JSON.stringify(S))}catch(e){}};
+const $=s=>document.querySelector(s);
+const sum=(a,k='amount')=>a.reduce((t,y)=>t+(+y[k]||0),0);
+const f=n=>(+n||0).toLocaleString('en-US');
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const cls=n=>n<0?'bad':'ok';
+const inM=d=>mon=='all'||(d||'').slice(0,7)==mon, bef=d=>mon!='all'&&(d||'')<mon;
+const earn=(e,w)=>(+e.days||0)*w.rt+(+e.ot||0)*w.ot+(+e.q||0)*(+e.r||0);
+const ded=e=>(+e.x||0)+(+e.a||0)+(+e.g||0);
+function wst(w){const es=S.e.filter(e=>e.w==w.id),ps=S.p.filter(p=>p.name==w.n),B=es.filter(e=>bef(e.date)),C=es.filter(e=>inM(e.date));
+ const prev=B.reduce((t,e)=>t+earn(e,w)-ded(e),0)-sum(ps.filter(p=>bef(p.date)));
+ const r={prev,earn:C.reduce((t,e)=>t+earn(e,w),0),x:sum(C,'x'),a:sum(C,'a'),g:sum(C,'g'),paid:sum(ps.filter(p=>inM(p.date))),days:sum(C,'days'),ot:sum(C,'ot'),debt:sum(S.m.filter(m=>m.name==w.n))};
+ r.bal=r.prev+r.earn-r.x-r.a-r.g-r.paid;return r}
+function del(c,id){if(!confirm('متأكد من الحذف؟'))return;S[c]=S[c].filter(x=>x.id!=id);save();render()}
+function go(t){tab=t;openW=null;render();scrollTo(0,0)}
+function siteOut(s){const ids=S.w.filter(w=>w.s==s).map(w=>w.id);return S.e.filter(e=>ids.includes(e.w)&&inM(e.date)).reduce((t,e)=>t+(+e.x||0)+(+e.a||0),0)}
+const M=a=>a.filter(x=>inM(x.date));
+
+function vSum(){
+ const cu=sum(M(S.c)),rows=[['نثريات',sum(M(S.x))],['تصفيات',sum(M(S.p))],...SITES.map(s=>[`موقع ${s} (مصاريف + سلف)`,siteOut(s)]),['زيد السوق',sum(M(S.z))]],out=sum(rows.map(r=>({amount:r[1]}))),rest=cu-out;
+ return`<div class="g2"><div class="card"><div class="mu">إجمالي العهدة</div><div class="big">${f(cu)}</div></div><div class="card"><div class="mu">إجمالي المصاريف</div><div class="big">${f(out)}</div></div></div>
+ <div class="card"><div class="mu">المتبقي من العهدة</div><div class="big ${cls(rest)}">${f(rest)}</div></div>
+ <div class="card">${rows.map(r=>`<div class="row"><span>${r[0]}</span><b>${f(r[1])}</b></div>`).join('')}</div>
+ <div class="card"><div class="row"><span>مديونيات على الناس</span><b>${f(sum(S.m))}</b></div></div>
+ <div class="g2"><button class="s" onclick="bk()">نسخ البيانات</button><button class="s" onclick="rs()">استرجاع نسخة</button></div>
+ <p class="mu">البيانات محفوظة على هذا الجهاز. انسخها لنقلها بين الموبايل واللاب.</p>`}
+
+function chips(a,cur,fn){return`<div class="chips">${a.map(k=>`<button class="${k==cur?'':'s'}" onclick="${fn}('${k}')">${L[k]?L[k].t:k}</button>`).join('')}</div>`}
+function vL(k){const c=L[k],l=M(S[k]).sort((a,b)=>b.date.localeCompare(a.date));
+ return`<div class="card">${c.f.map(([key,lb,ty,op])=>ty=='select'?`<select id="f_${key}">${op.map(o=>`<option>${o}</option>`).join('')}</select>`:`<input id="f_${key}" type="${ty=='list'?'text':ty}" ${ty=='list'?'list="wl"':''} placeholder="${lb}" value="${ty=='date'?today():''}" ${ty=='number'?'inputmode="decimal"':''}>`).join('')}
+ <datalist id="wl">${S.w.map(w=>`<option>${esc(w.n)}</option>`).join('')}</datalist><button onclick="addL('${k}')">إضافة</button></div>
+ <div class="card"><div class="row b"><span>إجمالي ${c.t}</span><span>${f(sum(l))}</span></div>`+l.map(x=>`<div class="row"><div><div class="b">${c.s(x)}</div><div class="mu">${x.date}</div></div><button class="g" onclick="del('${k}','${x.id}')">حذف</button></div>`).join('')+`</div>`}
+function addL(k){const o={id:uid()};L[k].f.forEach(([key])=>o[key]=$('#f_'+key).value);if(!+o.amount)return;o.amount=+o.amount;
+ S[k].push(o);save();render()}
+
+function vWork(){
+ if(openW)return vW(S.w.find(w=>w.id==openW));
+ const ws=S.w.filter(w=>w.s==site);
+ return`<div class="chips">${SITES.map(s=>`<button class="${s==site?'':'s'}" onclick="site='${s}';render()">${s}</button>`).join('')}</div>
+ <div class="card"><input id="n" placeholder="اسم العامل"><input id="jb" placeholder="الوظيفة (مشرف، صنايعي، عامل)"><select id="ty"><option value="daily">باليومية</option><option value="meter">بالمتر / بالبند</option></select>
+ <input type="number" id="rt" placeholder="سعر اليومية" inputmode="decimal"><input type="number" id="ot" placeholder="سعر السهرة" inputmode="decimal"><button onclick="addW()">إضافة عامل</button></div>
+ <div class="card">${ws.length?ws.map(w=>{const s=wst(w);return`<div class="row" onclick="openW='${w.id}';render()"><div><div class="b">${esc(w.n)}</div><div class="mu">${esc(w.jb)} · ${w.ty=='daily'?'يومية '+f(w.rt):'بالمتر'}</div></div><div class="b ${cls(s.bal)}">${f(s.bal)}</div></div>`}).join(''):'<div class="mu">لا يوجد عمال</div>'}</div>`}
+function addW(){const n=$('#n').value.trim();if(!n)return;S.w.push({id:uid(),n,jb:$('#jb').value,s:site,ty:$('#ty').value,rt:+$('#rt').value||0,ot:+$('#ot').value||0});save();render()}
+
+function vW(w){
+ const s=wst(w),d=w.ty=='daily',es=S.e.filter(e=>e.w==w.id&&inM(e.date)).sort((a,b)=>b.date.localeCompare(a.date)),I=(id,p,t='number')=>`<input id="${id}" type="${t}" placeholder="${p}" ${t=='number'?'inputmode="decimal"':''}>`;
+ return`<button class="s" onclick="openW=null;render()">→ رجوع</button> <button class="s" onclick="print()">طباعة</button><h2>${esc(w.n)} <span class="mu">(${w.s})</span></h2>
+ <div class="card">${s.prev?`<div class="row"><span>الشهر السابق</span><b class="${cls(s.prev)}">${f(s.prev)}</b></div>`:''}
+ <div class="row"><span>المستحق${d?` (${f(s.days)} يوم + ${f(s.ot)} سهرة)`:''}</span><b>${f(s.earn)}</b></div>
+ <div class="row"><span>مصاريف</span><b>${f(s.x)}</b></div><div class="row"><span>سلف</span><b>${f(s.a)}</b></div>${d?'':`<div class="row"><span>خصم عمالة</span><b>${f(s.g)}</b></div>`}
+ <div class="row"><span>مدفوع (تصفيات)</span><b>${f(s.paid)}</b></div>
+ <div class="row"><b>المتبقي له</b><b class="big ${cls(s.bal)}">${f(s.bal)}</b></div>
+ ${s.debt?`<div class="row"><span>مديونية عليه</span><b class="bad">${f(s.debt)}</b></div><div class="row"><b>الصافي بعد المديونية</b><b class="${cls(s.bal-s.debt)}">${f(s.bal-s.debt)}</b></div>`:''}</div>
+ <div class="card noprint"><input id="ed" type="date" value="${today()}">${d?I('ey','أيام (1 / 0.5)')+I('eo','سهرات'):`<input id="en" placeholder="البند"><input id="eq" type="number" placeholder="الكمية" inputmode="decimal"><input id="er" type="number" placeholder="الفئة (سعر الوحدة)" inputmode="decimal">`+I('eg','خصم عمالة (مبلغ)')}
+ ${I('ex','مصاريف')}${I('ea','سلف')}<button onclick="addE()">تسجيل</button> <button class="s" onclick="tab='q';sub.q='p';openW=null;render()">تصفية ←</button></div>
+ <div class="card">`+es.map(e=>{const p=[];if(e.days)p.push(e.days+' يوم');if(e.ot)p.push(e.ot+' سهرة');if(e.q)p.push(`${esc(e.note)} ${e.q}×${e.r}`);if(e.g)p.push('خصم '+e.g);if(e.x)p.push('مصاريف '+e.x);if(e.a)p.push('سلف '+e.a);
+  return`<div class="row"><div><div class="b">${p.join(' · ')}</div><div class="mu">${e.date}</div></div><button class="g noprint" onclick="del('e','${e.id}')">حذف</button></div>`}).join('')+`</div>
+ <button class="g noprint" onclick="delW('${w.id}')">حذف العامل</button>`}
+function addE(){const v=i=>+($('#'+i)?.value)||0,e={id:uid(),w:openW,date:$('#ed').value||today(),days:v('ey'),ot:v('eo'),q:v('eq'),r:v('er'),g:v('eg'),x:v('ex'),a:v('ea'),note:$('#en')?.value||''};
+ if(!(e.days||e.ot||e.q||e.g||e.x||e.a))return;S.e.push(e);save();render()}
+function delW(id){if(!confirm('حذف العامل وكل سجلاته؟'))return;S.w=S.w.filter(w=>w.id!=id);S.e=S.e.filter(e=>e.w!=id);openW=null;save();render()}
+
+function bk(){const t=JSON.stringify(S);try{navigator.clipboard.writeText(t).then(()=>alert('تم النسخ'))}catch(e){prompt('انسخ البيانات',t)}}
+function rs(){const t=prompt('الصق النسخة هنا');if(!t)return;try{const o=JSON.parse(t);if(!o.c||!o.w||!o.e)throw 0;S=Object.assign(S,o);save();render()}catch(e){alert('النسخة غير صالحة')}}
+
+function render(){
+ const ms=new Set([today().slice(0,7),mon]);[...S.c,...S.x,...S.z,...S.p,...S.e].forEach(x=>x.date&&ms.add(x.date.slice(0,7)));ms.delete('all');
+ $('#tabs').innerHTML=TABS.map(t=>`<button class="${t[0]==tab?'on':''}" onclick="go('${t[0]}')"><div>${t[1]}</div>${t[2]}</button>`).join('');
+ const hd=`<select class="noprint" onchange="mon=this.value;render()">${[...ms].sort().reverse().map(m=>`<option ${m==mon?'selected':''}>${m}</option>`).join('')}<option value="all" ${mon=='all'?'selected':''}>كل الشهور</option></select>`;
+ let b=tab=='sum'?vSum():tab=='w'?vWork():SUB[tab]?chips(SUB[tab],sub[tab],`(k=>{sub['${tab}']=k;render()})`)+vL(sub[tab]):vL(tab);
+ $('#app').innerHTML=hd+b}
+render();
+</script>
+</body>
+</html>
