@@ -25,10 +25,9 @@ button.s{background:var(--bg);color:var(--tx);border:1px solid var(--ln)}
 .tabs button{flex:1;background:none;color:var(--mu);border-radius:0;padding:8px 2px;font-size:11px}
 .tabs button.on{color:var(--pr)}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .big{font-size:20px;font-weight:700}
-h3{font-size:14px;margin:10px 0 6px;color:var(--mu)}input[type=checkbox]{width:auto;margin:0}label.chk{display:flex;align-items:center;gap:8px;margin-bottom:8px}button.edit{background:transparent;color:var(--pr);padding:4px 8px;border:1px solid var(--pr)}
-table{width:100%;border-collapse:collapse}th,td{padding:8px 6px;border-bottom:1px solid var(--ln);text-align:right}th{color:var(--mu);font-size:13px}td.n,th.n{text-align:left}tr.t td{font-weight:700;background:var(--bg)}
+h3{font-size:14px;margin:10px 0 6px;color:var(--mu)}input[type=checkbox]{width:auto;margin:0}button.edit{background:transparent;color:var(--pr);padding:4px 8px;border:1px solid var(--pr)}
+table{width:100%;border-collapse:collapse}th,td{padding:8px 6px;border-bottom:1px solid var(--ln);text-align:right}th{color:var(--mu);font-size:13px}td.n,th.n{text-align:left}
 .gr{overflow-x:auto;margin-bottom:8px}.gr table{width:auto;min-width:max-content}.gr th,.gr td{padding:3px;text-align:center;border:1px solid var(--ln);font-size:13px}.gr .l{position:sticky;right:0;background:var(--card);font-weight:700;min-width:62px;z-index:1}.gr input{width:48px;margin:0;padding:6px 2px;text-align:center}.gr button.cy{width:44px;padding:6px 0;background:var(--bg);color:var(--tx);border:1px solid var(--ln)}input.pi{width:70px;margin:0;padding:5px;text-align:center}
 .stmt-box{background:#fff;color:#000;border-radius:8px;padding:4px;overflow-x:auto;margin:10px 0;page-break-inside:avoid}
 .stmt-box table{border:2px solid #222;border-collapse:collapse;width:100%;color:#000}
@@ -56,13 +55,21 @@ const L={c:{t:'العهدة',f:[D,A,['r','المستلم','text']],s:x=>f(x.amou
  z:{t:'زيد السوق',f:[D,['k','النوع','select',['مصاريف','سلف']],A,['n','ملاحظة','text']],s:x=>x.k+': '+f(x.amount)+' '+esc(x.n)},
  p:{t:'تصفيات',f:[D,['name','الاسم','list'],A,['s','الموقع','select','SITES'],['n','ملاحظات','text']],s:x=>esc(x.name)+': '+f(x.amount)+' ('+x.s+') '+esc(x.n)},
  m:{t:'مديونيات',f:[D,['name','الاسم','list'],A],s:x=>esc(x.name)+': '+f(x.amount)}};
-let S;try{S=JSON.parse(localStorage.getItem('ohda2'))}catch(e){}
-S=Object.assign({c:[],x:[],z:[],p:[],m:[],w:[],e:[],sf:[],se:[],ex:[]},S||{});
+
+let S;
+try{
+  S=JSON.parse(localStorage.getItem('ohda2'))||{};
+}catch(e){
+  S={};
+}
+S=Object.assign({c:[],x:[],z:[],p:[],m:[],w:[],e:[],sf:[],se:[],ex:[]},S);
 S.ex=S.ex||[];
 S.sites=S.sites||SITES.slice();SITES=S.sites;
 S.w.forEach(w=>{w.meterRate=w.meterRate||0;w.helperRate=w.helperRate||0;w.prev=w.prev||{days:0,ot:0,exp:0,meterQty:0,adv:0}});
+
 const today=()=>new Date().toISOString().slice(0,10);
-let openStmt=null,openEx=null;let tab='sum',site=SITES[0],openW=null,mon=today().slice(0,7),sub={o:'x',q:'p'},selW=new Set(),multiPrint=false;
+let openStmt=null,openEx=null,tab='sum',site=SITES[0],openW=null,mon=today().slice(0,7),sub={o:'x',q:'p'},selW=new Set(),multiPrint=false;
+
 const save=()=>{try{localStorage.setItem('ohda2',JSON.stringify(S))}catch(e){}if(DBc&&cloud!='loading'){try{localStorage.setItem('ohda2_dirty','1')}catch(e){}cloud='saving';stat();clearTimeout(saveT);saveT=setTimeout(pushCloud,700)}};
 const $=s=>document.querySelector(s);
 const sum=(a,k='amount')=>a.reduce((t,y)=>t+(+y[k]||0),0);
@@ -72,8 +79,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const cls=n=>n<0?'bad':'ok';
 const inM=d=>mon=='all'||(d||'').slice(0,7)==mon,bef=d=>mon!='all'&&(d||'')<mon;
 const M=a=>a.filter(x=>inM(x.date));
-const earn=(e,w)=>(+e.days||0)*(e.rt!=null?+e.rt:+w.rt||0)+(+e.ot||0)*(e.otRate!=null?+e.otRate:+w.ot||0)+(+e.q||0)*(+e.r||0);
-const ded=e=>(+e.x||0)+(+e.a||0)+(+e.g||0);
+
 function acct(w){
  const sc=d=>!w.since||(d||'')>=w.since,E=S.e.filter(e=>e.w==w.id&&sc(e.date)),pr=w.prev||{},hr=+w.helperRate||0,PS=S.p.filter(p=>p.name==w.n&&sc(p.date));
  const rt=e=>e.rt!=null?+e.rt:+w.rt||0,ot=e=>e.otRate!=null?+e.otRate:+w.ot||0;
@@ -88,6 +94,7 @@ function wst(w){const a=acct(w),r={prev:a.earnP-a.dedP-a.paidP,earn:a.earnC,x:a.
 function rr(){const g=$('#gs'),sl=g?g.scrollLeft:0,sy=scrollY;render();const g2=$('#gs');if(g2)g2.scrollLeft=sl;scrollTo(0,sy)}
 async function del(c,id){if(!await sure('متأكد من الحذف؟'))return;S[c]=S[c].filter(x=>x.id!=id);save();render()}
 function go(t){tab=t;openW=null;openStmt=null;openEx=null;multiPrint=false;render();scrollTo(0,0)}
+
 const siteIds=s=>S.w.filter(w=>w.s==s).map(w=>w.id);
 const getSiteIn=s=>sum(S.sf.filter(x=>x.site==s&&inM(x.date)));
 const getSiteOut=s=>sum(S.se.filter(x=>x.site==s&&inM(x.date)));
@@ -102,6 +109,7 @@ function vSum(){
  <div class="card"><div class="mu">العهدة المتبقية (الواصل − المصروف)</div><div class="big ${cls(rest)}">${f(rest)}</div></div>
  <div class="g2"><button onclick="exportXlsx()">📥 تصدير Excel</button><button class="s" onclick="$('#xf').click()">📤 استيراد Excel</button></div><input type="file" id="xf" accept=".xlsx" style="display:none" onchange="impX(this)">
  <div class="g2" style="margin-top:8px"><button class="s" onclick="bk()">نسخ البيانات</button><button class="s" onclick="rs()">استرجاع نسخة</button></div>`}
+
 function debtCard(){const m={};S.m.forEach(x=>m[x.name]=(m[x.name]||0)+(+x.amount||0));const r=Object.entries(m).filter(e=>Math.abs(e[1])>0.001);
  return`<div class="card"><h3>📒 المتبقي على كل شخص (كل الشهور)</h3>${r.map(e=>`<div class="row"><span>${esc(e[0])}</span><b class="${cls(-e[1])}">${f(e[1])}</b></div>`).join('')||'<div class="mu">لا توجد مديونيات</div>'}<div class="row"><b>الإجمالي</b><b>${f(sum(S.m))}</b></div></div><p class="mu">بتتخصم تلقائي من مستحقات الشخص لما تضغط "تصفية" في صفحته.</p>`}
 function setSub(t,k){sub[t]=k;render()}
@@ -123,7 +131,6 @@ function selectAll(){S.w.filter(w=>w.s==site).forEach(w=>selW.add(w.id));render(
 function clearSel(){selW.clear();render()}
 function printSelected(){const valid=S.w.filter(w=>selW.has(w.id));if(!valid.length){say('اختار عامل واحد على الأقل');return}multiPrint=true;render();scrollTo(0,0)}
 
-// دالة بناء جدول التصفية الرسمي (تُستخدم للتصفية الفردية والجماعية)
 function buildStmtTable(w){
  const a=acct(w),T=a.T,hr=a.hr,m=w.ty=='meter',paid=a.paidP+a.paidC,net=a.earnT-a.dedT-paid;
  const rows=[];if(m){const g={};a.E.filter(e=>+e.q>0&&(bef(e.date)||inM(e.date))).forEach(e=>{const k=(e.note||'بند')+'|'+(+e.r||0);(g[k]=g[k]||{n:e.note||'بند',r:+e.r||0,q:0}).q+=+e.q});Object.values(g).forEach(i=>rows.push([i.n,i.q,i.r,i.q*i.r]));if(a.M.q)rows.push(['متر (الشهر السابق)',a.M.q,+w.meterRate||0,a.M.mA])}
@@ -145,7 +152,7 @@ function buildStmtTable(w){
 function vMultiPrint(){
  const ws=S.w.filter(w=>selW.has(w.id));
  return`<div class="noprint" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-  <button class="s" onclick="multiPrint=false;render()">→ رجوع</button>
+  <button class="s" onclick="multiPrint=false;render()">← رجوع</button>
   <button onclick="doPrint()">🖨️ طباعة الكل (${ws.length})</button>
   <button class="s" onclick="clearSel();multiPrint=false;render()">إلغاء التحديد</button>
  </div>
@@ -167,4 +174,5 @@ function vWork(){
  ${ws.length?ws.map(w=>{const s=wst(w);return`<div class="row"><input type="checkbox" ${selW.has(w.id)?'checked':''} onchange="toggleSel('${w.id}')"><div style="flex:1;cursor:pointer" onclick="openW='${w.id}';render()"><div class="b">${esc(w.n)}</div><div class="mu">${esc(w.jb)} · ${w.ty=='daily'?'يومية '+f(w.rt):'متر '+f(w.meterRate)}</div></div><b class="${cls(s.bal)}" onclick="openW='${w.id}';render()">${f(s.bal)}</b></div>`}).join(''):'<div class="mu">لا يوجد عمال</div>'}</div>
  ${selValid.length?`<div class="float-bar noprint"><div><b>محدد ${selValid.length} عامل</b><div class="mu">من ${[...new Set(selValid.map(w=>w.s))].join('، ')}</div></div><div style="display:flex;gap:6px"><button class="s" onclick="clearSel()">إلغاء</button><button onclick="printSelected()">🖨️ طباعة التصفيات</button></div></div>`:''}`}
 
-function siteBlock(k,title){const l=(k
+function siteBlock(k,title){const l=(k=='sf'?S.sf:S.se).filter(x=>x.site==site&&inM(x.date)).sort((a,b)=>b.date.localeCompare(a.date)),ty=k=='sf'?'in':'out';
+ return`<div class="card noprint"><h3>➕ ${title} (${site})</h3><input id="sd_${k}" type="date" value="${today()}"><input type="number" id="sa_${k}" placeholder="المبلغ" inputmode="decimal"><input id="sn_${k}" placeholder="${k=='se'?'البند':'ملاحظة'}"><button onclick="addSite(
